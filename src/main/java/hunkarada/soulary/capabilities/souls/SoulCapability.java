@@ -3,44 +3,85 @@ package hunkarada.soulary.capabilities.souls;
 // It's default realization of soul capability for player.
 
 import hunkarada.soulary.Soulary;
-import hunkarada.soulary.network.SoularyNetwork;
-import hunkarada.soulary.network.packets.SyncSoulPacket;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.*;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
-import java.util.*;
-
-import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
+import java.util.HashMap;
+import java.util.Random;
 
 /*This class is realizing soul capability.
  *Every LivingEntity must have it with all that stats.
  *Data storages in NBT, for manipulating data use HashMaps, then convert to CompoundTag.*/
 @SuppressWarnings({"unchecked", "boxing", "WrapperTypeMayBePrimitive"})
 public class SoulCapability {
-    /*Constants for setting defaults*/
-    public static final String[] STAT_NAMES = {"soulWill", "soulStability"};
-    public static final float[] STAT_VALUES = {100, 10};
-    public static final String[] FEELINGS_NAMES = {"joy/sadness", "trust/disgust", "fear/anger", "surprise/anticipation"};
+    /*Name constants for setting default capability data*/
+    private static final String[] STAT_NAMES = {"will", "stability", "joy/sadness", "trust/disgust", "fear/anger", "surprise/anticipation"};
 
     /*That's actually capability data*/
-    public HashMap<String, Float> soulStats = new HashMap<>();
-    public HashMap<String, Float> soulFeelings = new HashMap<>();
+    private final HashMap<String, Float> soulStats = new HashMap<>();
+    private byte tickCounter;
 
+    /*Methods for safety getting data from HashMap (without providing change methods)*/
+    public float getSoulStat(String key) {
+        return soulStats.get(key);
+    }
+
+    /*Methods for safety changing capability data
+    * No need to create subtract and divide methods because I can use add and multiply as subtract and divide*/
+    public void add(String key, float value) {
+        float result = soulStats.get(key) + value;
+        if (result > 100){
+            soulStats.put(key, 100f);
+        }
+        else if (result < 0 && key.equals("will") || key.equals("stability")){
+            soulStats.put(key, 0f);
+        }
+        else if (result < -100){
+            soulStats.put(key, -100f);
+        }
+        else {
+            soulStats.put(key, result);
+        }
+
+    }
+    public void multiply(String key, float value) {
+        float result = soulStats.get(key) * value;
+        if (result > 100){
+            soulStats.put(key, 100f);
+        }
+        else if (result < 0 && key.equals("will") || key.equals("stability")){
+            soulStats.put(key, 0f);
+        }
+        else if (result < -100){
+            soulStats.put(key, -100f);
+        }
+        else {
+            soulStats.put(key, result);
+        }
+    }
+
+    /*Method to handle tickingCounter*/
+    public boolean tickHandler(){
+        if (tickCounter < 100){
+            tickCounter++;
+            return false;
+        }
+        else {
+            tickCounter = 0;
+            return true;
+        }
+    }
     /*Coverts HashMaps to CompoundTag*/
-    public static <T> CompoundTag convertHashToNbt(HashMap<String, T> hashMap){
+    private static <T> CompoundTag convertHashToNbt(HashMap<String, T> hashMap){
         T[] values = (T[]) hashMap.values().toArray();
         String[] keys = hashMap.keySet().toArray(new String[]{});
         CompoundTag nbt = new CompoundTag();
@@ -96,7 +137,7 @@ public class SoulCapability {
         return nbt;
     }
     /*Sets capability data from CompoundTag*/
-    public static <T> void setFromNbtToHash(CompoundTag nbt, HashMap<String, T> hashMap){
+    private static <T> void setFromNbtToHash(CompoundTag nbt, HashMap<String, T> hashMap){
         String[] keys = hashMap.keySet().toArray(new String[]{});
         T value = (T) hashMap.values().toArray()[0];
         if (value instanceof String){
@@ -153,31 +194,32 @@ public class SoulCapability {
         setDefaults();
     }
 
-    /*Returns CompoundTag with all capability data, in that state it's ready for saving capability to disk.*/
+    /*Returns CompoundTag with all capability data, in that state data prepared to saving at disk.*/
     public CompoundTag getNbtData() {
         CompoundTag nbt = new CompoundTag();
         nbt.put("soulStats", convertHashToNbt(soulStats));
-        nbt.put("soulFeelings", convertHashToNbt(soulFeelings));
+        nbt.putByte("tickCounter", tickCounter);
         return nbt;
     }
 
-    /*Sets data from CompoundTag (got from readNbt()) to HashMaps*/
-    public void setNbtData(CompoundTag nbt){
+    /*Converts data from NBT got from disk to HashMap*/
+    public void setNbtData(CompoundTag nbt) {
         setFromNbtToHash((CompoundTag) nbt.get("soulStats"), soulStats);
-        setFromNbtToHash((CompoundTag) nbt.get("soulFeelings"), soulFeelings);
+        nbt.getByte("tickCounter");
     }
 
-    /*Sets default data for instance of capability*/
-    public void setDefaults(){
-        int x = 0;
+    /*Sets default data for new instance of capability*/
+    private void setDefaults() {
         final Random random = new Random();
         for (String key : STAT_NAMES) {
-            soulStats.put(key, STAT_VALUES[x]);
-            x++;
+            if (key.equals("will") || key.equals("stability")){
+                soulStats.put(key, random.nextFloat(0, 100));
+            }
+            else {
+                soulStats.put(key, random.nextFloat(-100, 100));
+            }
         }
-        for (String key : FEELINGS_NAMES) {
-            soulFeelings.put(key, random.nextFloat(0, 100));
-        }
+        tickCounter = 0;
     }
 
     /*Class for registering Serializable capability*/
@@ -219,7 +261,7 @@ public class SoulCapability {
 
     /*Event for attaching capability for any LivingEntity*/
     public static void attachCapability(AttachCapabilitiesEvent<Entity> event) {
-        if (event.getObject() instanceof LivingEntity){
+        if (event.getObject() instanceof LivingEntity) {
             SoulCapability.Provider provider = new Provider(new SoulCapability());
             event.addCapability(new ResourceLocation(Soulary.MOD_ID, "soul_capability"), provider);
             event.addListener(provider::invalidate);
@@ -230,30 +272,4 @@ public class SoulCapability {
     public static void registerCapability(RegisterCapabilitiesEvent event) {
         event.register(SoulCapability.class);
     }
-
-    /*Method, which sending capability to LocalPlayer form server
-    * Use every time, when capability on server updates*/
-    public static void sync(Player player){
-        if (!player.level.isClientSide){
-            ServerPlayer serverPlayer = (ServerPlayer) player;
-            player.getCapability(SOUL_CAPABILITY).ifPresent(capability ->
-                    SoularyNetwork.SOULARY_SIMPLE_CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new SyncSoulPacket(capability)));
-        }
-    }
-
-    // Sync on LogIn
-    public static void syncLoggingIn(PlayerEvent.PlayerLoggedInEvent event){
-        sync(event.getPlayer());
-    }
-
-    // Sync after changing dimension
-    public static void syncChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event){
-        sync(event.getPlayer());
-    }
-
-    // Sync on respawn
-    public static void syncOnRespawn(PlayerEvent.PlayerRespawnEvent event){
-        sync(event.getPlayer());
-    }
-
 }

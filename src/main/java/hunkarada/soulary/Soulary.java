@@ -2,7 +2,9 @@ package hunkarada.soulary;
 
 import hunkarada.soulary.capabilities.souls.SoulCapability;
 import hunkarada.soulary.client.hud.SoulHud;
+import hunkarada.soulary.common.interaction.TickingSoulEvents;
 import hunkarada.soulary.network.SoularyNetwork;
+import hunkarada.soulary.network.packets.SyncSoulCapability;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.client.gui.OverlayRegistry;
 import net.minecraftforge.common.MinecraftForge;
@@ -27,9 +29,10 @@ public class Soulary {
     public void onCommonSetup(FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.addGenericListener(Entity.class, SoulCapability::attachCapability);
-        MinecraftForge.EVENT_BUS.addListener(SoulCapability::syncChangedDimension);
-        MinecraftForge.EVENT_BUS.addListener(SoulCapability::syncLoggingIn);
-        MinecraftForge.EVENT_BUS.addListener(SoulCapability::syncOnRespawn);
+        MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncChangedDimension);
+        MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncLoggingIn);
+        MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncOnRespawn);
+        MinecraftForge.EVENT_BUS.addListener(TickingSoulEvents::tickingSoul);
         SoularyNetwork.init();
     }
 

@@ -1,7 +1,7 @@
 package hunkarada.soulary.network;
 
 import hunkarada.soulary.Soulary;
-import hunkarada.soulary.network.packets.SyncSoulPacket;
+import hunkarada.soulary.network.packets.SyncSoulCapability;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
@@ -21,6 +21,6 @@ public class SoularyNetwork {
             PROTOCOL_VERSION::equals);
     // Initialization method, which registries my network channel.
     public static void init() {
-        SOULARY_SIMPLE_CHANNEL.registerMessage(0, SyncSoulPacket.class, SyncSoulPacket::encode, SyncSoulPacket::new, SyncSoulPacket::send, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        SOULARY_SIMPLE_CHANNEL.registerMessage(0, SyncSoulCapability.class, SyncSoulCapability::encode, SyncSoulCapability::new, SyncSoulCapability::send, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 }

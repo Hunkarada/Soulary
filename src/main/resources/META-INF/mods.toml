@@ -9,17 +9,17 @@ authors="Hunkarada"
 description='''
 Soulary
 
-Special thanks to: ConnorTron110, Cy4's Modding Community, The Forge Project.
+Special thanks to: ConnorTron110, Cy4's Modding Community, The Forge Project community, MMD.
 '''
 [[dependencies.Soulary]]
    modId="forge"
    mandatory=true
-   versionRange="[36,)"
+   versionRange="[40,)"
    ordering="NONE"
    side="BOTH"
 [[dependencies.Soulary]]
    modId="minecraft"
    mandatory=true
-   versionRange="[1.18.1)"
+   versionRange="[1.18.2)"
    ordering="NONE"
    side="BOTH"
