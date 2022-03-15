@@ -9,14 +9,20 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.*;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.Random;
+
+import static hunkarada.soulary.Soulary.LOGGER;
+import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
 
 /*This class is realizing soul capability.
  *Every LivingEntity must have it with all that stats.
@@ -24,10 +30,11 @@ import java.util.Random;
 @SuppressWarnings({"unchecked", "boxing", "WrapperTypeMayBePrimitive"})
 public class SoulCapability {
     /*Name constants for setting default capability data*/
-    private static final String[] STAT_NAMES = {"will", "stability", "joy/sadness", "trust/disgust", "fear/anger", "surprise/anticipation"};
+    private static final String[] STAT_NAMES = {"will", "stability", "joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation"};
 
     /*That's actually capability data*/
     private final HashMap<String, Float> soulStats = new HashMap<>();
+    private final HashMap<String, Byte> soulStages = new HashMap<>();
     private byte tickCounter;
 
     /*Methods for safety getting data from HashMap (without providing change methods)*/
@@ -39,39 +46,44 @@ public class SoulCapability {
     * No need to create subtract and divide methods because I can use add and multiply as subtract and divide*/
     public void add(String key, float value) {
         float result = soulStats.get(key) + value;
-        if (result > 100){
-            soulStats.put(key, 100f);
-        }
-        else if (result < 0 && key.equals("will") || key.equals("stability")){
-            soulStats.put(key, 0f);
-        }
-        else if (result < -100){
-            soulStats.put(key, -100f);
-        }
-        else {
-            soulStats.put(key, result);
-        }
-
+        validateCalc(key, result);
     }
     public void multiply(String key, float value) {
         float result = soulStats.get(key) * value;
+        validateCalc(key, result);
+    }
+    private void validateStage(String key){
+        if (!key.equals("will") && !key.equals("stability")){
+            float value = soulStats.get(key);
+            if (value <= 25) {
+                soulStages.put(key, (byte) 0);
+            } else if (value > 25 && value <= 50) {
+                soulStages.put(key, (byte) 1);
+            } else if (value > 50 && value <= 75) {
+                soulStages.put(key, (byte) 2);
+            } else if (value > 75 && value <= 100) {
+                soulStages.put(key, (byte) 3);
+            }
+        }
+    }
+    /*Method, which checking calculations*/
+    private void validateCalc(String key, float result){
         if (result > 100){
             soulStats.put(key, 100f);
+            validateStage(key);
         }
-        else if (result < 0 && key.equals("will") || key.equals("stability")){
+        else if (result < 0){
             soulStats.put(key, 0f);
-        }
-        else if (result < -100){
-            soulStats.put(key, -100f);
+            validateStage(key);
         }
         else {
             soulStats.put(key, result);
+            validateStage(key);
         }
     }
-
     /*Method to handle tickingCounter*/
     public boolean tickHandler(){
-        if (tickCounter < 100){
+        if (tickCounter < 20){
             tickCounter++;
             return false;
         }
@@ -198,6 +210,7 @@ public class SoulCapability {
     public CompoundTag getNbtData() {
         CompoundTag nbt = new CompoundTag();
         nbt.put("soulStats", convertHashToNbt(soulStats));
+        nbt.put("soulStages", convertHashToNbt(soulStages));
         nbt.putByte("tickCounter", tickCounter);
         return nbt;
     }
@@ -205,6 +218,7 @@ public class SoulCapability {
     /*Converts data from NBT got from disk to HashMap*/
     public void setNbtData(CompoundTag nbt) {
         setFromNbtToHash((CompoundTag) nbt.get("soulStats"), soulStats);
+        setFromNbtToHash((CompoundTag) nbt.get("soulStages"), soulStages);
         nbt.getByte("tickCounter");
     }
 
@@ -212,11 +226,10 @@ public class SoulCapability {
     private void setDefaults() {
         final Random random = new Random();
         for (String key : STAT_NAMES) {
-            if (key.equals("will") || key.equals("stability")){
-                soulStats.put(key, random.nextFloat(0, 100));
-            }
-            else {
-                soulStats.put(key, random.nextFloat(-100, 100));
+            soulStats.put(key, random.nextFloat(0, 50));
+            if (!key.equals("will") && !key.equals("stability")) {
+                soulStages.put(key, (byte) 0);
+                validateStage(key);
             }
         }
         tickCounter = 0;
@@ -264,12 +277,21 @@ public class SoulCapability {
         if (event.getObject() instanceof LivingEntity) {
             SoulCapability.Provider provider = new Provider(new SoulCapability());
             event.addCapability(new ResourceLocation(Soulary.MOD_ID, "soul_capability"), provider);
-            event.addListener(provider::invalidate);
+//            event.addListener(provider::invalidate);
         }
     }
 
     /*Event, which register capability in forge*/
     public static void registerCapability(RegisterCapabilitiesEvent event) {
         event.register(SoulCapability.class);
+    }
+    /*Event for saving capability when player switching dimension*/
+    public static void playerClone(PlayerEvent.Clone event) {
+        event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getNbtData()));
+
+    }
+    public static void debug(Player player){
+        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStats);
+        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStages);
     }
 }

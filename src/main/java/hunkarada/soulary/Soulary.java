@@ -1,12 +1,10 @@
 package hunkarada.soulary;
 
 import hunkarada.soulary.capabilities.souls.SoulCapability;
-import hunkarada.soulary.client.hud.SoulHud;
 import hunkarada.soulary.common.interaction.TickingSoulEvents;
 import hunkarada.soulary.network.SoularyNetwork;
 import hunkarada.soulary.network.packets.SyncSoulCapability;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.client.gui.OverlayRegistry;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
@@ -32,12 +30,13 @@ public class Soulary {
         MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncChangedDimension);
         MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncLoggingIn);
         MinecraftForge.EVENT_BUS.addListener(SyncSoulCapability::syncOnRespawn);
+        MinecraftForge.EVENT_BUS.addListener(SoulCapability::playerClone);
         MinecraftForge.EVENT_BUS.addListener(TickingSoulEvents::tickingSoul);
         SoularyNetwork.init();
     }
 
     public void onClientSetup(FMLClientSetupEvent event){
-        OverlayRegistry.registerOverlayTop("SoularyHUD", new SoulHud());
+//        OverlayRegistry.registerOverlayTop("SoularyHUD", new SoulHud());
     }
     public void onServerSetup(FMLDedicatedServerSetupEvent event){
     }

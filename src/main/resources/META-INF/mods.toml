@@ -1,13 +1,13 @@
 modLoader="javafml"
-loaderVersion="[36,)"
-license="LGPL"
+loaderVersion="[40,)"
+license="GPL-3.0-only"
 [[mods]]
 modId="soulary"
 version="${file.jarVersion}"
 displayName="Soulary"
 authors="Hunkarada"
 description='''
-Soulary
+Project Soulary
 
 Special thanks to: ConnorTron110, Cy4's Modding Community, The Forge Project community, MMD.
 '''

@@ -1,7 +1,7 @@
 package hunkarada.soulary.common.interaction;
 
 import hunkarada.soulary.capabilities.souls.SoulCapability;
-import net.minecraft.core.Vec3i;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -21,41 +21,46 @@ import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).tickHandler()){
-            soulAura(event);
+            soulRegeneration(event);
             biomeExposure(event);
-        }
-    }
-    private static void soulAura(LivingEvent event){
-        float coefficient = event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("will")/100*4;
-        AABB aabb;
-        if (coefficient == 0) {
-            aabb = new AABB(event.getEntityLiving().getOnPos());
-        }
-        else {
-            aabb = new AABB(
-                    event.getEntityLiving().getOnPos().subtract(new Vec3i(event.getEntityLiving().getOnPos().getX(), event.getEntityLiving().getOnPos().getY(), event.getEntityLiving().getOnPos().getZ()).offset(coefficient * -1, coefficient * -1, coefficient * -1)),
-                    event.getEntityLiving().getOnPos().subtract(new Vec3i(event.getEntityLiving().getOnPos().getX(), event.getEntityLiving().getOnPos().getY(), event.getEntityLiving().getOnPos().getZ()).offset(coefficient, coefficient, coefficient)));
-            event.getEntityLiving().getLevel().getEntities(event.getEntityLiving(), aabb);
-        }
-        List<Entity> entities = event.getEntityLiving().getLevel().getEntities(event.getEntityLiving(), aabb);
-        List<Entity> filteredEntities = new ArrayList<>();
-        for (Entity entitiy:entities){
-            LOGGER.warn(event.getEntityLiving().getOnPos().distSqr(entitiy.getOnPos()));
-            if (event.getEntityLiving().getOnPos().distSqr(entitiy.getOnPos()) <= coefficient) {
-                filteredEntities.add(entitiy);
+            soulAura(event);
+            if (event.getEntityLiving() instanceof Player){
+                SoulCapability.debug((Player) event.getEntityLiving());
             }
         }
-        LOGGER.warn(filteredEntities);
+    }
+    private static void soulRegeneration(LivingEvent event){
+        event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
+        });
+    }
+    private static void soulAura(LivingEvent event){
+        float auraRadius = event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("will")/100*8;
+        AABB sqrZone = new AABB(
+                new BlockPos(event.getEntityLiving().getOnPos().getX()+auraRadius, event.getEntityLiving().getOnPos().getY()+auraRadius, event.getEntityLiving().getOnPos().getZ()+auraRadius),
+                new BlockPos(event.getEntityLiving().getOnPos().getX()+auraRadius*-1, event.getEntityLiving().getOnPos().getY()+auraRadius*-1, event.getEntityLiving().getOnPos().getZ()+auraRadius*-1));
+        List<Entity> entities = event.getEntityLiving().getLevel().getEntities(event.getEntityLiving(), sqrZone);
+        List<LivingEntity> filteredEntities = new ArrayList<>();
+        for (Entity entitiy:entities){
+            if (Math.sqrt(event.getEntityLiving().getOnPos().distSqr(entitiy.getOnPos())) <= auraRadius && entitiy instanceof LivingEntity livingEntity) {
+                filteredEntities.add(livingEntity);
+            }
+        }
         for (Entity entity:filteredEntities){
-            entity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.add("joy/sadness", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("joy/sadness")/10));
-            entity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.add("trust/disgust", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("trust/disgust")/10));
-            entity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.add("fear/anger", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("fear/anger")/10));
-            entity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.add("surprise/anticipation", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("surprise/anticipation")/10));
+            entity.getCapability(SOUL_CAPABILITY).ifPresent(
+                    soulCapability -> {
+                        soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("joy")/100);
+                        soulCapability.add("sadness", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("sadness")/100);
+                        soulCapability.add("trust", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("trust")/100);
+                        soulCapability.add("disgust", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("disgust")/100);
+                        soulCapability.add("fear", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("fear")/100);
+                        soulCapability.add("anger", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("anger")/100);
+                        soulCapability.add("surprise", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("surprise")/100);
+                        soulCapability.add("anticipation", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getSoulStat("anticipation")/100);
+                    });
             if (entity instanceof Player){
                 sync((Player) entity);
             }
         }
-        LOGGER.warn("AURA OF " + event.getEntityLiving() + "IMPULSED");
     }
     private static void biomeExposure(LivingEvent event){
         Collection<Biome> list = ForgeRegistries.BIOMES.getValues();
