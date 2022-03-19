@@ -18,6 +18,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.Random;
 
 import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
@@ -34,31 +35,82 @@ public class SoulCapability {
     /*That's actually capability data*/
     private final HashMap<String, Float> soulStats = new HashMap<>();
     private final HashMap<String, Float> soulFeels = new HashMap<>();
+    private final HashMap<String, Float> soulChaosNumbers = new HashMap<>();
+    private final HashMap<String, Float> soulAdaptations = new HashMap<>();
     private final HashMap<String, Byte> soulStages = new HashMap<>();
     private byte tickCounter;
 
-    /*Methods for safety getting data from HashMap (without providing change methods)*/
+    /*Methods for safety getting data from HashMap (without providing directly change methods)*/
     public float getStat(String key) {
         return soulStats.get(key);
     }
     public float getFeel(String key){
         return soulFeels.get(key);
     }
+    public float getChaos(String key){
+        return soulChaosNumbers.get(key);
+    }
     public byte getStage(String key){
         return soulStages.get(key);
+    }
+
+    /*Method to handle tickingCounter and ChaosNumbers*/
+    public boolean tickHandler(){
+        if (tickCounter < 20){
+            tickCounter++;
+            return false;
+        }
+        else {
+            tickCounter = 0;
+            chaosHandler();
+            regenerationHandler();
+            return true;
+        }
+    }
+
+    /*Method, which changing chaos (random) numbers, fired with tickHandler()*/
+    private void chaosHandler(){
+        Random random = new Random();
+        for (String key:FEEL_NAMES){
+            soulChaosNumbers.put(key, random.nextFloat(-1, 1));
+        }
+    }
+
+    /*Method, which regenerates will, stability and adaptation values by a time, fired with tickHandler()*/
+    private void regenerationHandler(){
+        this.add("will", 1f);
+        this.add("stability", -0.1f);
+        for (String key : FEEL_NAMES) {
+            validateAdaptation(key, soulAdaptations.get(key) + 0.001f);
+        }
     }
 
     /*Methods for safety changing capability data
     * No need to create subtract and divide methods because I can use add and multiply as subtract and divide
     * Also, I can set border to max value with setting stage, check validateStage() method for more info.*/
     public void add(String key, float value, byte stage) {
-        float result = selectMap(key).get(key) + value;
-        safetyCalc(key, result, stage);
+        if (soulStats.containsKey(key)){
+            float result = selectMap(key).get(key) + value;
+            safetyCalc(key, result, stage);
+        }
+        else if (soulFeels.containsKey(key)) {
+            float result = selectMap(key).get(key) + (value * soulAdaptations.get(key));
+            safetyCalc(key, result, stage);
+            validateAdaptation(key, value);
+        }
     }
     public void multiply(String key, float value, byte stage) {
-        float result = selectMap(key).get(key) * value;
-        safetyCalc(key, result, stage);
+        if (soulStats.containsKey(key)){
+            float result = selectMap(key).get(key) * value;
+            safetyCalc(key, result, stage);
+        }
+        else if (soulFeels.containsKey(key)) {
+            float result = selectMap(key).get(key) * (value * soulAdaptations.get(key));
+            safetyCalc(key, result, stage);
+            validateAdaptation(key, value);
+        }
     }
+
     /*Calculation methods without setting border with stage byte*/
     public void add(String key, float value){
         add(key, value, (byte) 3);
@@ -66,6 +118,7 @@ public class SoulCapability {
     public void multiply(String key, float value){
         multiply(key, value, (byte) 3);
     }
+
     /*Because I'll change only soulStats and soulFeels directly, and they haven't equal keys, so I'll get map from unique key,*/
     private HashMap<String, Float> selectMap(String key){
         if (soulStats.containsKey(key)){
@@ -76,6 +129,8 @@ public class SoulCapability {
         }
         else throw new RuntimeException("Invalid key for HashMap");
     }
+
+    /*Method, which validating current stage after changing feelings*/
     private void validateStage(String key){
         float value = soulFeels.get(key);
         if (value <= 25) {
@@ -88,6 +143,21 @@ public class SoulCapability {
             soulStages.put(key, (byte) 3);
         }
     }
+
+    /*Method, which validating adaptation state, based on changed value.*/
+    private void validateAdaptation(String key, float value){
+        float result = soulAdaptations.get(key) - value/100;
+        if (result < 0){
+            soulAdaptations.put(key, 0f);
+        }
+        else if (result > 1){
+            soulAdaptations.put(key, 1f);
+        }
+        else {
+            soulAdaptations.put(key, result);
+        }
+    }
+
     /*Method, which checking calculations for invalid results.
     If invalid - sets value at 0-stage borders.*/
     private void safetyCalc(String key, float result, byte stage){
@@ -95,52 +165,50 @@ public class SoulCapability {
             case 0 -> {
                 if (result > 25){
                     selectMap(key).put(key, 25f);
-                    validateStage(key);
+                    if (soulFeels.containsKey(key)) {
+                        validateStage(key);
+                    }
 
                 }
             }
             case 1 -> {
                 if (result > 50){
                     selectMap(key).put(key, 50f);
-                    validateStage(key);
+                    if (soulFeels.containsKey(key)) {
+                        validateStage(key);
+                    }
 
                 }
             }
             case 2 -> {
                 if (result > 75){
                     selectMap(key).put(key, 75f);
-                    validateStage(key);
-
+                    if (soulFeels.containsKey(key)) {
+                        validateStage(key);
+                    }
                 }
             }
             case 3 -> {
                 if (result > 100){
                     selectMap(key).put(key, 100f);
-                validateStage(key);
+                    if (soulFeels.containsKey(key)) {
+                        validateStage(key);
+                    }
 
                 }
             }
         }
         if (result < 0){
             selectMap(key).put(key, 0f);
-            validateStage(key);
         }
         else {
             selectMap(key).put(key, result);
+        }
+        if (soulFeels.containsKey(key)) {
             validateStage(key);
         }
     }
-    /*Method to handle tickingCounter*/
-    public boolean tickHandler(){
-        if (tickCounter < 20){
-            tickCounter++;
-            return false;
-        }
-        else {
-            tickCounter = 0;
-            return true;
-        }
-    }
+
     /*Coverts HashMaps to CompoundTag*/
     private static <T> CompoundTag convertHashToNbt(HashMap<String, T> hashMap){
         T[] values = (T[]) hashMap.values().toArray();
@@ -197,6 +265,7 @@ public class SoulCapability {
         }
         return nbt;
     }
+
     /*Sets capability data from CompoundTag*/
     private static <T> void setFromNbtToHash(CompoundTag nbt, HashMap<String, T> hashMap){
         String[] keys = hashMap.keySet().toArray(new String[]{});
@@ -250,6 +319,7 @@ public class SoulCapability {
             }
         }
     }
+
     /*Constructor for capability, sets default values*/
     public SoulCapability(){
         setDefaults();
@@ -260,6 +330,8 @@ public class SoulCapability {
         CompoundTag nbt = new CompoundTag();
         nbt.put("soulStats", convertHashToNbt(soulStats));
         nbt.put("soulFeels", convertHashToNbt(soulFeels));
+        nbt.put("soulChaosNumbers", convertHashToNbt(soulChaosNumbers));
+        nbt.put("soulAdaptations", convertHashToNbt(soulAdaptations));
         nbt.put("soulStages", convertHashToNbt(soulStages));
         nbt.putByte("tickCounter", tickCounter);
         return nbt;
@@ -269,6 +341,8 @@ public class SoulCapability {
     public void setNbtData(CompoundTag nbt) {
         setFromNbtToHash((CompoundTag) nbt.get("soulStats"), soulStats);
         setFromNbtToHash((CompoundTag) nbt.get("soulFeels"), soulFeels);
+        setFromNbtToHash((CompoundTag) nbt.get("soulChaosNumbers"), soulChaosNumbers);
+        setFromNbtToHash((CompoundTag) nbt.get("soulAdaptations"), soulAdaptations);
         setFromNbtToHash((CompoundTag) nbt.get("soulStages"), soulStages);
         nbt.getByte("tickCounter");
     }
@@ -279,8 +353,11 @@ public class SoulCapability {
             soulStats.put(key, 0f);
         }
         for (String key : FEEL_NAMES) {
+            Random random = new Random();
             soulFeels.put(key, 0f);
             soulStages.put(key, (byte) 0);
+            soulChaosNumbers.put(key, random.nextFloat(-1, 1));
+            soulAdaptations.put(key, 1f);
             validateStage(key);
         }
         tickCounter = 0;
@@ -343,6 +420,9 @@ public class SoulCapability {
     }
     public static void debug(Player player){
         LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStats);
+        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulFeels);
+        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulChaosNumbers);
+        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulAdaptations);
         LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStages);
     }
 }

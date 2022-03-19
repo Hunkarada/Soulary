@@ -34,7 +34,6 @@ public class SyncSoulCapability {
             }
         });
         context.get().setPacketHandled(true);
-
     }
 
     /*Method, which sending capability to LocalPlayer form server

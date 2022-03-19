@@ -1,4 +1,4 @@
-package hunkarada.soulary.common.interaction;
+package hunkarada.soulary.common.soul.ticking;
 
 import hunkarada.soulary.capabilities.souls.SoulCapability;
 import net.minecraft.core.BlockPos;
@@ -12,16 +12,17 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 
+import static hunkarada.soulary.capabilities.souls.SoulCapability.FEEL_NAMES;
 import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).tickHandler()){
-            soulRegeneration(event);
+//            soulRegeneration(event);
+            soulChaos(event);
             biomeExposure(event);
             soulAura(event);
             if (event.getEntityLiving() instanceof Player){
@@ -31,12 +32,22 @@ public class TickingSoulEvents {
     }
     private static void soulRegeneration(LivingEvent event){
         event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
+            soulCapability.add("will", 1f);
+            soulCapability.add("stability", -0.1f);
         });
     }
-    /*Method, which working, when you have stage >= 2 */
+    private static void soulChaos(LivingEvent event){
+        event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
+            for (String key : FEEL_NAMES) {
+                soulCapability.add(key, soulCapability.getChaos(key) / 10);
+            }
+        });
+    }
+    /*Method, which working, when you have stage >= 2.
+     If so, you will share your feelings with any other entities in radius, based on your will.*/
     private static void soulAura(LivingEvent event){
         List<Byte> stages = new ArrayList<>();
-        for (String key: SoulCapability.FEEL_NAMES){
+        for (String key: FEEL_NAMES){
             stages.add(event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStage(key));
         }
         boolean stageChecker = false;
@@ -61,29 +72,8 @@ public class TickingSoulEvents {
             for (Entity entity : filteredEntities) {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
-                            if (stages.get(0) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("joy") / 100, (byte) (stages.get(0)-1));
-                            }
-                            if (stages.get(1) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("sadness") / 100, (byte) (stages.get(1)-1));
-                            }
-                            if (stages.get(2) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("trust") / 100, (byte) (stages.get(2)-1));
-                            }
-                            if (stages.get(3) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("disgust") / 100, (byte) (stages.get(3)-1));
-                            }
-                            if (stages.get(4) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("fear") / 100, (byte) (stages.get(4)-1));
-                            }
-                            if (stages.get(5) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("anger") / 100, (byte) (stages.get(5)-1));
-                            }
-                            if (stages.get(6) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("surprise") / 100, (byte) (stages.get(6)-1));
-                            }
-                            if (stages.get(7) >= 2){
-                                soulCapability.add("joy", event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("anticipation") / 100, (byte) (stages.get(7)-1));
+                            for (int index = 0; index < FEEL_NAMES.length; index++) {
+                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-1));
                             }
                         });
                 if (entity instanceof Player) {
