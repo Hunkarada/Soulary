@@ -46,7 +46,6 @@ public class SyncSoulCapability {
                     SoularyNetwork.SOULARY_SIMPLE_CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new SyncSoulCapability(capability)));
         }
     }
-
     // Sync on LogIn
     public static void syncLoggingIn(PlayerEvent.PlayerLoggedInEvent event){
         sync(event.getPlayer());
