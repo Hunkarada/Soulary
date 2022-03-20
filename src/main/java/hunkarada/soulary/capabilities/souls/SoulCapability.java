@@ -1,6 +1,20 @@
-package hunkarada.soulary.capabilities.souls;
+/*  Mod for minecraft about souls and feelings
+    Copyright (C) 2022 by Hunkarada
 
-// It's default realization of soul capability for player.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
+
+package hunkarada.soulary.capabilities.souls;
 
 import hunkarada.soulary.Soulary;
 import net.minecraft.core.Direction;
@@ -33,12 +47,12 @@ public class SoulCapability {
     public static final String[] FEEL_NAMES = {"joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation"};
 
     /*That's actually capability data*/
-    private final HashMap<String, Float> soulStats = new HashMap<>();
-    private final HashMap<String, Float> soulFeels = new HashMap<>();
-    private final HashMap<String, Float> soulChaosNumbers = new HashMap<>();
-    private final HashMap<String, Float> soulAdaptations = new HashMap<>();
-    private final HashMap<String, Byte> soulStages = new HashMap<>();
-    private byte tickCounter;
+    protected final HashMap<String, Float> soulStats = new HashMap<>();
+    protected final HashMap<String, Float> soulFeels = new HashMap<>();
+    protected final HashMap<String, Float> soulChaosNumbers = new HashMap<>();
+    protected final HashMap<String, Float> soulAdaptations = new HashMap<>();
+    protected final HashMap<String, Byte> soulStages = new HashMap<>();
+    protected byte tickCounter;
 
     /*Methods for safety getting data from HashMap (without providing directly change methods)*/
     public float getStat(String key) {
