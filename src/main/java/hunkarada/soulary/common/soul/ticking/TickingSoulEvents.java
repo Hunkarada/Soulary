@@ -37,7 +37,7 @@ import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).tickHandler()){
-//            soulRegeneration(event);
+            soulRegeneration(event);
             soulChaos(event);
             biomeExposure(event);
             soulAura(event);
@@ -55,7 +55,7 @@ public class TickingSoulEvents {
     private static void soulChaos(LivingEvent event){
         event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
             for (String key : FEEL_NAMES) {
-                soulCapability.add(key, soulCapability.getChaos(key) / 10);
+                soulCapability.add(key, 10, (byte) 3, false);
             }
         });
     }
@@ -89,7 +89,7 @@ public class TickingSoulEvents {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
                             for (int index = 0; index < FEEL_NAMES.length; index++) {
-                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-1));
+                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
                             }
                         });
                 if (entity instanceof Player) {
