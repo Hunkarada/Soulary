@@ -15,7 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 package hunkarada.soulary.network.packets;
 
-import hunkarada.soulary.capabilities.souls.SoulCapability;
+import hunkarada.soulary.common.soul.SoulCapability;
 import hunkarada.soulary.network.SoularyNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -28,7 +28,7 @@ import net.minecraftforge.network.PacketDistributor;
 
 import java.util.function.Supplier;
 
-import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
+import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 
 // Packet for syncing capability data with client
 public class SyncSoulCapability {

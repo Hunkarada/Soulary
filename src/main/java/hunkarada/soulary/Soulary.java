@@ -16,8 +16,9 @@
 
 package hunkarada.soulary;
 
-import hunkarada.soulary.capabilities.souls.SoulCapability;
-import hunkarada.soulary.common.soul.ticking.TickingSoulEvents;
+import hunkarada.soulary.common.events.soulary.StageChangedEvent;
+import hunkarada.soulary.common.soul.SoulCapability;
+import hunkarada.soulary.common.events.ticking.TickingSoulEvents;
 import hunkarada.soulary.network.SoularyNetwork;
 import hunkarada.soulary.network.packets.SyncSoulCapability;
 import net.minecraft.world.entity.Entity;

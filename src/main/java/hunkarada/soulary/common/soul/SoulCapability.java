@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 
-package hunkarada.soulary.capabilities.souls;
+package hunkarada.soulary.common.soul;
 
 import hunkarada.soulary.Soulary;
 import net.minecraft.core.Direction;
@@ -23,7 +23,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.*;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
@@ -36,7 +35,7 @@ import java.util.HashMap;
 import java.util.Random;
 
 import static hunkarada.soulary.Soulary.LOGGER;
-import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
+import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 
 /*This class is realizing soul capability.
  *Every LivingEntity must have it with all that stats.
@@ -51,20 +50,19 @@ public class SoulCapability {
     /*That's actually capability data*/
     protected final HashMap<String, Float> soulStats = new HashMap<>();
     protected final HashMap<String, Float> soulFeels = new HashMap<>();
-    protected final HashMap<String, Float> soulChaosNumbers = new HashMap<>();
     protected final HashMap<String, Float> soulAdaptations = new HashMap<>();
     protected final HashMap<String, Byte> soulStages = new HashMap<>();
     protected byte tickCounter;
 
-    /*Methods for safety getting data from HashMap (without providing directly change methods)*/
+    /*Methods for safety getting data from HashMap*/
     public float getStat(String key) {
         return soulStats.get(key);
     }
     public float getFeel(String key){
         return soulFeels.get(key);
     }
-    public float getChaos(String key){
-        return soulChaosNumbers.get(key);
+    public float getChaos(){
+        return new Random().nextFloat();
     }
     public byte getStage(String key){
         return soulStages.get(key);
@@ -77,21 +75,13 @@ public class SoulCapability {
         }
         else {
             tickCounter = 0;
-            chaosHandler();
             return true;
         }
     }
 
-    /*Method, which changing chaos (random) numbers, fired with tickHandler()*/
-    private void chaosHandler(){
-        Random random = new Random();
-        for (String key:FEEL_NAMES){
-            soulChaosNumbers.put(key, random.nextFloat(-1, 1));
-        }
-    }
     /*Methods for safety changing capability data
     * No need to create subtract and divide methods because I can use add and multiply as subtract and divide
-    * Also, I can set border to max value with setting stage, check validateStage() method for more info.*/
+    * Also, I can set border to max value with setting stage, or disable changing reversed adaptation (for example if I want to change all feelings at once), check validateStage() method for more info.*/
     public void add(String key, float value, byte stage, boolean changeReversedAdaptation) {
         if (soulStats.containsKey(key)){
             float result = soulStats.get(key) + value;
@@ -101,23 +91,35 @@ public class SoulCapability {
             safetyCalc(key, calculateWithAdaptation(key, value, changeReversedAdaptation), stage);
         }
     }
-    public void multiply(String key, float value, byte stage) {
+    public void multiply(String key, float value, byte stage, boolean changeReversedAdaptation) {
         if (soulStats.containsKey(key)){
             float result = soulStats.get(key) * value;
             safetyCalc(key, result, stage);
         }
         else if (soulFeels.containsKey(key)) {
             float result = soulFeels.get(key) * value - soulFeels.get(key);
-            safetyCalc(key, calculateWithAdaptation(key, result), stage);
+            safetyCalc(key, calculateWithAdaptation(key, result, changeReversedAdaptation), stage);
         }
     }
 
-    /*Calculation methods without setting border with stage byte*/
+    /*Simplified calculation methods*/
     public void add(String key, float value){
         add(key, value, (byte) 3, true);
     }
     public void multiply(String key, float value){
-        multiply(key, value, (byte) 3);
+        multiply(key, value, (byte) 3, true);
+    }
+    public void add(String key, float value, boolean changeReversedAdaptation){
+        add(key, value, (byte) 3, changeReversedAdaptation);
+    }
+    public void multiply(String key, float value, boolean changeReversedAdaptation){
+        multiply(key, value, (byte) 3, changeReversedAdaptation);
+    }
+    public void add(String key, float value, byte stage){
+        add(key, value, stage, true);
+    }
+    public void multiply(String key, float value, byte stage){
+        multiply(key, value, stage, true);
     }
 
     /*Because I'll change only soulStats and soulFeels directly, and they haven't equal keys, so I'll get map from unique key,*/
@@ -133,20 +135,25 @@ public class SoulCapability {
 
     /*Method, which validating current stage after changing feelings*/
     private void validateStage(String key){
+        byte previousStage = soulStages.get(key);
+        byte newStage = 0;
         float value = soulFeels.get(key);
-        if (value <= 25) {
-            soulStages.put(key, (byte) 0);
-        } else if (value > 25 && value <= 50) {
-            soulStages.put(key, (byte) 1);
+        if (value > 25 && value <= 50) {
+            newStage = 1;
         } else if (value > 50 && value <= 75) {
-            soulStages.put(key, (byte) 2);
+            newStage = 2;
         } else if (value > 75 && value <= 100) {
-            soulStages.put(key, (byte) 3);
+            newStage = 3;
+        }
+        if (previousStage != newStage){
+            soulStages.put(key, newStage);
+            //feelsHandler(newStage);
         }
     }
 
     /*Method, which validating adaptation state, based on changed value.
-    * Made by Brilliance*/
+    * Made by Brilliance
+    * https://www.desmos.com/calculator/glrhteb7z9*/
     private float calculateWithAdaptation(String key, float value, boolean changeReversedAdaptation){
         int index = Arrays.stream(FEEL_NAMES).toList().indexOf(key);
         float adaptation = soulAdaptations.get(FEEL_NAMES[index]);
@@ -156,9 +163,9 @@ public class SoulCapability {
         if (bufferAdaptation < 0 || adaptation < 0){
             float BA;
             float ADA;
-            if (bufferAdaptation < -100){
-                BA = -100;
-                resultAdaptation +=(bufferAdaptation+100)*2;
+            if (bufferAdaptation < -50){
+                BA = -50;
+                resultAdaptation +=(bufferAdaptation+50)*2;
             }
             else if (bufferAdaptation > 0){
                 BA = 0;
@@ -173,22 +180,22 @@ public class SoulCapability {
                 ADA = adaptation;
             }
             resultAdaptation += (BA-ADA)*onAdaptationNegative(BA);
-            if (bufferAdaptation < -100){
-                bufferAdaptation = -100;
+            if (bufferAdaptation < -50){
+                bufferAdaptation = -50;
             }
-            if (reversedBufferAdaptation > 100){
-                reversedBufferAdaptation = 100;
+            if (reversedBufferAdaptation > 50){
+                reversedBufferAdaptation = 50;
             }
-            else if (reversedBufferAdaptation < -100){
-                reversedBufferAdaptation = -100;
+            else if (reversedBufferAdaptation < -50){
+                reversedBufferAdaptation = -50;
             }
         }
         if (bufferAdaptation > 0 || adaptation > 0){
             float BA;
             float ADA;
-            if (bufferAdaptation > 100){
-                BA = 100;
-                resultAdaptation +=(bufferAdaptation-100)*0.5;
+            if (bufferAdaptation > 50){
+                BA = 50;
+                resultAdaptation +=(bufferAdaptation-50)*0.5;
             }
             else if (bufferAdaptation < 0){
                 BA = 0;
@@ -203,14 +210,14 @@ public class SoulCapability {
                 ADA = adaptation;
             }
             resultAdaptation += (BA-ADA)*onAdaptationPositive(BA);
-            if (bufferAdaptation > 100){
-                bufferAdaptation = 100;
+            if (bufferAdaptation > 50){
+                bufferAdaptation = 50;
             }
-            if (reversedBufferAdaptation > 100){
-                reversedBufferAdaptation = 100;
+            if (reversedBufferAdaptation > 50){
+                reversedBufferAdaptation = 50;
             }
-            else if (reversedBufferAdaptation < -100){
-                reversedBufferAdaptation = -100;
+            else if (reversedBufferAdaptation < -50){
+                reversedBufferAdaptation = -50;
             }
         }
         soulAdaptations.put(FEEL_NAMES[index], bufferAdaptation);
@@ -219,16 +226,13 @@ public class SoulCapability {
         }
         return soulFeels.get(FEEL_NAMES[index]) + resultAdaptation;
     }
-    private float calculateWithAdaptation(String key, float value){
-        return calculateWithAdaptation(key, value, true);
-    }
     /*Functions for internal calculations of adaptation
     Positive means adaptation > 1, negative means adaptation < 1*/
     private static float onAdaptationPositive(float x){
-        return (float) (-0.005*x+1);
+        return (float) (-0.01*x+1);
     }
     private static float onAdaptationNegative(float x){
-        return (float) (-0.01*x+1);
+        return (float) (-0.02*x+1);
     }
     /*Method, which checking calculations for invalid results.
     If invalid - sets value at 0-stage borders.*/
@@ -405,7 +409,6 @@ public class SoulCapability {
         CompoundTag nbt = new CompoundTag();
         nbt.put("soulStats", convertHashToNbt(soulStats));
         nbt.put("soulFeels", convertHashToNbt(soulFeels));
-        nbt.put("soulChaosNumbers", convertHashToNbt(soulChaosNumbers));
         nbt.put("soulAdaptations", convertHashToNbt(soulAdaptations));
         nbt.put("soulStages", convertHashToNbt(soulStages));
         nbt.putByte("tickCounter", tickCounter);
@@ -416,7 +419,6 @@ public class SoulCapability {
     public void setNbtData(CompoundTag nbt) {
         setFromNbtToHash((CompoundTag) nbt.get("soulStats"), soulStats);
         setFromNbtToHash((CompoundTag) nbt.get("soulFeels"), soulFeels);
-        setFromNbtToHash((CompoundTag) nbt.get("soulChaosNumbers"), soulChaosNumbers);
         setFromNbtToHash((CompoundTag) nbt.get("soulAdaptations"), soulAdaptations);
         setFromNbtToHash((CompoundTag) nbt.get("soulStages"), soulStages);
         nbt.getByte("tickCounter");
@@ -428,10 +430,8 @@ public class SoulCapability {
             soulStats.put(key, 0f);
         }
         for (String key : FEEL_NAMES) {
-            Random random = new Random();
             soulFeels.put(key, 0f);
             soulStages.put(key, (byte) 0);
-            soulChaosNumbers.put(key, random.nextFloat(-1, 1));
             soulAdaptations.put(key, 0f);
             validateStage(key);
         }
@@ -477,7 +477,7 @@ public class SoulCapability {
 
     /*Event for attaching capability for any LivingEntity*/
     public static void attachCapability(AttachCapabilitiesEvent<Entity> event) {
-        if (event.getObject() instanceof Player) {
+        if (event.getObject() instanceof LivingEntity) {
             SoulCapability.Provider provider = new Provider(new SoulCapability());
             event.addCapability(new ResourceLocation(Soulary.MOD_ID, "soul_capability"), provider);
 //            event.addListener(provider::invalidate);
@@ -493,12 +493,15 @@ public class SoulCapability {
         if (!event.isWasDeath()) {
             event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getNbtData()));
         }
-    }
-    public static void debug(Player player){
-        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStats);
-        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulFeels);
-        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulChaosNumbers);
-        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulAdaptations);
-        LOGGER.warn(player.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).soulStages);
+        else if (event.isWasDeath()){
+            event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
+                soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getNbtData());
+                for (String key:FEEL_NAMES){
+                    soulCapability.multiply(key, 0.5f, false);
+                }
+                soulCapability.add("will", -100);
+                soulCapability.add("stability", 100);
+            });
+        }
     }
 }

@@ -14,9 +14,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 
-package hunkarada.soulary.common.soul.ticking;
+package hunkarada.soulary.common.events.ticking;
 
-import hunkarada.soulary.capabilities.souls.SoulCapability;
+import hunkarada.soulary.common.soul.SoulCapability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -30,33 +30,22 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static hunkarada.soulary.capabilities.souls.SoulCapability.FEEL_NAMES;
-import static hunkarada.soulary.capabilities.souls.SoulCapability.Provider.SOUL_CAPABILITY;
+import static hunkarada.soulary.common.soul.SoulCapability.FEEL_NAMES;
+import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).tickHandler()){
             soulRegeneration(event);
-            soulChaos(event);
             biomeExposure(event);
             soulAura(event);
-            if (event.getEntityLiving() instanceof Player){
-                SoulCapability.debug((Player) event.getEntityLiving());
-            }
         }
     }
     private static void soulRegeneration(LivingEvent event){
         event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
             soulCapability.add("will", 1f);
             soulCapability.add("stability", -0.1f);
-        });
-    }
-    private static void soulChaos(LivingEvent event){
-        event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
-            for (String key : FEEL_NAMES) {
-                soulCapability.add(key, 10, (byte) 3, false);
-            }
         });
     }
     /*Method, which working, when you have stage >= 2.
