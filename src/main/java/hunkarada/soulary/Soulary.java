@@ -16,7 +16,6 @@
 
 package hunkarada.soulary;
 
-import hunkarada.soulary.common.events.soulary.StageChangedEvent;
 import hunkarada.soulary.common.soul.SoulCapability;
 import hunkarada.soulary.common.events.ticking.TickingSoulEvents;
 import hunkarada.soulary.network.SoularyNetwork;

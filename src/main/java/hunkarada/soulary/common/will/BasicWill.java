@@ -15,20 +15,26 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 package hunkarada.soulary.common.will;
 
-import net.minecraft.world.entity.Entity;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
+import java.util.HashMap;
 
 
 public abstract class BasicWill {
-    protected String id;
-    protected ResourceLocation model;
-    protected ResourceLocation texture;
     protected ResourceLocation sound;
-    protected Entity caster;
-    protected double willCost;
-    protected double stabilityCost;
-    protected double feelCost;
+
+    protected LivingEntity caster;
+
+    protected float willCost;
+    protected float stabilityCost;
+    protected HashMap<String, Float> feelCost;
+
     protected abstract void cast();
-    protected abstract void clientCast();
+
+    @OnlyIn(Dist.CLIENT)
+    protected abstract void render();
 
 }

@@ -17,6 +17,7 @@
 package hunkarada.soulary.common.soul;
 
 import hunkarada.soulary.Soulary;
+import hunkarada.soulary.common.soul.states.ISoulState;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -32,27 +33,43 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Random;
 
-import static hunkarada.soulary.Soulary.LOGGER;
+import static hunkarada.soulary.common.soul.StatesHandler.generateState;
+import static hunkarada.soulary.common.soul.StatesHandler.stateHandler;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 
-/*This class is realizing soul capability.
- *Every LivingEntity must have it with all that stats.
- *Data storages in NBT, for manipulating data use HashMaps, then convert to CompoundTag.*/
+/*This class is implementing soul capability.*/
 @SuppressWarnings({"unchecked", "boxing", "WrapperTypeMayBePrimitive"})
 public class SoulCapability {
     /*Name constants for setting default capability data*/
     public static final String[] STAT_NAMES = {"will", "stability"};
     public static final String[] FEEL_NAMES = {"joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation"};
     public static final String[] REVERSED_FEEL_NAMES = {"sadness", "joy", "disgust", "trust", "anger", "fear", "anticipation", "surprise"};
+    public static final String[] STATE_NAMES = {"joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation", "aggressiveness", "awe", "contempt", "disapproval", "love", "optimism", "remorse", "submission"};
+    //That's actually capability data
 
-    /*That's actually capability data*/
+    //soulStats contains will (= mana) and stability (= exhaustion), they have simple calculations and used for casting wills.
     protected final HashMap<String, Float> soulStats = new HashMap<>();
+    // soulFeels contains actual feels (check in FEEL_NAMES), soulAdaptation contains values for adaptation mechanic (check calculateWithAdaptation()).
     protected final HashMap<String, Float> soulFeels = new HashMap<>();
     protected final HashMap<String, Float> soulAdaptations = new HashMap<>();
+    // soulStages contains values for stages mechanic (method to understand, when I should change states, check validateStage()).
     protected final HashMap<String, Byte> soulStages = new HashMap<>();
+    // soulStates contains currently affecting states to LivingEntity, check StatesHandler.class and SoulState.class.
+    protected final HashMap<String, ISoulState> soulStates = new HashMap<>();
+    // soulRelation contains UUID:soulFeels keypair to handle relations with other entities.
+    protected final HashMap<String, HashMap<String, Float>> soulRelations = new HashMap<>();
+    // tickCounter using to handle TickingSoulEvents.class and any other tick-related mechanics.
     protected byte tickCounter;
+
+    /*Reference to LivingEntity with capability*/
+    LivingEntity livingEntity;
+
+    /*Constructor for capability, sets default values*/
+    public SoulCapability(LivingEntity livingEntity){
+        this.livingEntity = livingEntity;
+        setDefaults();
+    }
 
     /*Methods for safety getting data from HashMap*/
     public float getStat(String key) {
@@ -60,9 +77,6 @@ public class SoulCapability {
     }
     public float getFeel(String key){
         return soulFeels.get(key);
-    }
-    public float getChaos(){
-        return new Random().nextFloat();
     }
     public byte getStage(String key){
         return soulStages.get(key);
@@ -147,7 +161,7 @@ public class SoulCapability {
         }
         if (previousStage != newStage){
             soulStages.put(key, newStage);
-            //feelsHandler(newStage);
+            stateHandler(livingEntity, key);
         }
     }
 
@@ -361,6 +375,12 @@ public class SoulCapability {
                 hashMap.put(key, (T) data);
             }
         }
+        else if (value instanceof Float){
+            for(String key:keys) {
+                Float data = nbt.getFloat(key);
+                hashMap.put(key, (T) data);
+            }
+        }
         else if (value instanceof Short){
             for(String key:keys) {
                 Short data = nbt.getShort(key);
@@ -370,12 +390,6 @@ public class SoulCapability {
         else if (value instanceof Integer){
             for(String key:keys) {
                 Integer data = nbt.getInt(key);
-                hashMap.put(key, (T) data);
-            }
-        }
-        else if (value instanceof Float){
-            for(String key:keys) {
-                Float data = nbt.getFloat(key);
                 hashMap.put(key, (T) data);
             }
         }
@@ -397,11 +411,6 @@ public class SoulCapability {
                 hashMap.put(key, (T) data);
             }
         }
-    }
-
-    /*Constructor for capability, sets default values*/
-    public SoulCapability(){
-        setDefaults();
     }
 
     /*Returns CompoundTag with all capability data, in that state data prepared to saving at disk.*/
@@ -434,6 +443,9 @@ public class SoulCapability {
             soulStages.put(key, (byte) 0);
             soulAdaptations.put(key, 0f);
             validateStage(key);
+        }
+        for (String key : STATE_NAMES){
+            soulStates.put(key, generateState(key, (byte) 0, livingEntity));
         }
         tickCounter = 0;
     }
@@ -478,7 +490,7 @@ public class SoulCapability {
     /*Event for attaching capability for any LivingEntity*/
     public static void attachCapability(AttachCapabilitiesEvent<Entity> event) {
         if (event.getObject() instanceof LivingEntity) {
-            SoulCapability.Provider provider = new Provider(new SoulCapability());
+            SoulCapability.Provider provider = new Provider(new SoulCapability((LivingEntity) event.getObject()));
             event.addCapability(new ResourceLocation(Soulary.MOD_ID, "soul_capability"), provider);
 //            event.addListener(provider::invalidate);
         }
@@ -491,11 +503,12 @@ public class SoulCapability {
     /*Event for saving capability when player switching dimension*/
     public static void playerClone(PlayerEvent.Clone event) {
         if (!event.isWasDeath()) {
-            event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getNbtData()));
+            event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability ->
+                    soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getNbtData()));
         }
         else if (event.isWasDeath()){
             event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
-                soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getNbtData());
+                soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getNbtData());
                 for (String key:FEEL_NAMES){
                     soulCapability.multiply(key, 0.5f, false);
                 }

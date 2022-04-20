@@ -30,13 +30,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.common.soul.SoulCapability.FEEL_NAMES;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
-        if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).tickHandler()){
+        if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).tickHandler()){
             soulRegeneration(event);
             biomeExposure(event);
             soulAura(event);
@@ -53,7 +54,7 @@ public class TickingSoulEvents {
     private static void soulAura(LivingEvent event){
         List<Byte> stages = new ArrayList<>();
         for (String key: FEEL_NAMES){
-            stages.add(event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStage(key));
+            stages.add(event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getStage(key));
         }
         boolean stageChecker = false;
         for (byte stage:stages){
@@ -63,7 +64,7 @@ public class TickingSoulEvents {
             }
         }
         if (stageChecker) {
-            float auraRadius = event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getStat("will")/100*8;
+            float auraRadius = event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getStat("will")/100*8;
             AABB sqrZone = new AABB(
                     new BlockPos(event.getEntityLiving().getOnPos().getX() + auraRadius, event.getEntityLiving().getOnPos().getY() + auraRadius, event.getEntityLiving().getOnPos().getZ() + auraRadius),
                     new BlockPos(event.getEntityLiving().getOnPos().getX() + auraRadius * -1, event.getEntityLiving().getOnPos().getY() + auraRadius * -1, event.getEntityLiving().getOnPos().getZ() + auraRadius * -1));
@@ -78,7 +79,7 @@ public class TickingSoulEvents {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
                             for (int index = 0; index < FEEL_NAMES.length; index++) {
-                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability()).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
+                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
                             }
                         });
                 if (entity instanceof Player) {
