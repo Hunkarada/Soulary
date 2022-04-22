@@ -2,8 +2,6 @@ package hunkarada.soulary.common.soul.states;
 
 import net.minecraft.world.entity.LivingEntity;
 
-import java.util.Objects;
-
 public class Contempt implements ISoulState {
     public byte stage;
     private final LivingEntity livingEntity;
@@ -19,17 +17,17 @@ public class Contempt implements ISoulState {
     }
 
     @Override
-    public void uniqueEffects(byte stage, LivingEntity livingEntity) {
+    public void uniqueEffects() {
 
     }
 
     @Override
-    public void attributeChange(byte stage, LivingEntity livingEntity) {
+    public void attributeChange() {
 
     }
 
     @Override
-    public void render(byte stage, LivingEntity livingEntity) {
+    public void render() {
 
     }
 }

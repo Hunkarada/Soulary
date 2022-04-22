@@ -16,6 +16,7 @@
 
 package hunkarada.soulary.common.events.ticking;
 
+import hunkarada.soulary.common.soul.FeelsHandler;
 import hunkarada.soulary.common.soul.SoulCapability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.common.soul.SoulCapability.FEEL_NAMES;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
@@ -38,23 +38,16 @@ import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
 public class TickingSoulEvents {
     public static void tickingSoul(LivingEvent.LivingUpdateEvent event) {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).tickHandler()){
-            soulRegeneration(event);
             biomeExposure(event);
             soulAura(event);
         }
-    }
-    private static void soulRegeneration(LivingEvent event){
-        event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
-            soulCapability.add("will", 1f);
-            soulCapability.add("stability", -0.1f);
-        });
     }
     /*Method, which working, when you have stage >= 2.
      If so, you will share your feelings with any other entities in radius, based on your will.*/
     private static void soulAura(LivingEvent event){
         List<Byte> stages = new ArrayList<>();
         for (String key: FEEL_NAMES){
-            stages.add(event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getStage(key));
+            stages.add(event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getState(key));
         }
         boolean stageChecker = false;
         for (byte stage:stages){
@@ -79,7 +72,7 @@ public class TickingSoulEvents {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
                             for (int index = 0; index < FEEL_NAMES.length; index++) {
-                                soulCapability.add(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
+                                FeelsHandler.addFeel(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true, event.getEntityLiving());
                             }
                         });
                 if (entity instanceof Player) {

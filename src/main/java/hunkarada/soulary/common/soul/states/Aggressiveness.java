@@ -11,23 +11,24 @@ public class Aggressiveness implements ISoulState {
         this.livingEntity = livingEntity;
     }
 
+
     @Override
     public void setStage(byte stage) {
         this.stage = stage;
     }
 
     @Override
-    public void uniqueEffects(byte stage, LivingEntity livingEntity) {
+    public void uniqueEffects() {
 
     }
 
     @Override
-    public void attributeChange(byte stage, LivingEntity livingEntity) {
+    public void attributeChange() {
 
     }
 
     @Override
-    public void render(byte stage, LivingEntity livingEntity) {
+    public void render() {
 
     }
 

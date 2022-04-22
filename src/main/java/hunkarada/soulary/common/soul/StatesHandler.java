@@ -10,126 +10,64 @@ import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABIL
 
 public class StatesHandler {
     /*This method changing current state of entity, depending on feelings of this entity.*/
-    public static void stateHandler(LivingEntity livingEntity, String key){
-        HashMap<String, Byte> stages = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStages;
+    public static void stateHandler(String key, LivingEntity livingEntity){
+        HashMap<String, Byte> states = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates;
         switch (key) {
-            case "all" -> {
-                joy(stages.get("joy"), livingEntity);
-                sadness(stages.get("sadness"), livingEntity);
-                trust(stages.get("trust"), livingEntity);
-                disgust(stages.get("disgust"), livingEntity);
-                fear(stages.get("fear"), livingEntity);
-                anger(stages.get("anger"), livingEntity);
-                surprise(stages.get("surprise"), livingEntity);
-                anticipation(stages.get("anticipation"), livingEntity);
-            }
-            case "joy" -> joy(stages.get("joy"), livingEntity);
-            case "sadness" -> sadness(stages.get("sadness"), livingEntity);
-            case "trust" -> trust(stages.get("trust"), livingEntity);
-            case "disgust" -> disgust(stages.get("disgust"), livingEntity);
-            case "fear" -> fear(stages.get("fear"), livingEntity);
-            case "anger" -> anger(stages.get("anger"), livingEntity);
-            case "surprise" -> surprise(stages.get("surprise"), livingEntity);
-            case "anticipation" -> anticipation(stages.get("anticipation"), livingEntity);
+            case "joy" -> joy(states.get("joy"), livingEntity);
+            case "sadness" -> sadness(states.get("sadness"), livingEntity);
+            case "trust" -> trust(states.get("trust"), livingEntity);
+            case "disgust" -> disgust(states.get("disgust"), livingEntity);
+            case "fear" -> fear(states.get("fear"), livingEntity);
+            case "anger" -> anger(states.get("anger"), livingEntity);
+            case "surprise" -> surprise(states.get("surprise"), livingEntity);
+            case "anticipation" -> anticipation(states.get("anticipation"), livingEntity);
         }
     }
-    private static void joy(byte stage, LivingEntity livingEntity){
-        byte anticipationStage = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStages.get("anticipation");
-        byte trustStage = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStages.get("trust");
-        switch (stage) {
-            case 0 -> {
-            }
-            case 1 -> {
-                changeState("joy", stage, livingEntity);
-            }
-            case 2 -> {
-                if (anticipationStage == stage){
-                }
-            }
-            case 3 -> {}
-        }
+    private static void joy(byte state, LivingEntity livingEntity){
+        byte anticipationState = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates.get("anticipation");
+        byte trustState = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates.get("trust");
     }
-    private static void sadness(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void sadness(byte state, LivingEntity livingEntity){
+
     }
-    private static void trust(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void trust(byte state, LivingEntity livingEntity){
+
     }
-    private static void disgust(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void disgust(byte state, LivingEntity livingEntity){
+
     }
-    private static void fear(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void fear(byte state, LivingEntity livingEntity){
+
     }
-    private static void anger(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void anger(byte state, LivingEntity livingEntity){
+
     }
-    private static void surprise(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void surprise(byte state, LivingEntity livingEntity){
+
     }
-    private static void anticipation(byte stage, LivingEntity livingEntity){
-        switch (stage) {
-            case 0 -> {}
-            case 1 -> {}
-            case 2 -> {}
-            case 3 -> {}
-        }
+    private static void anticipation(byte state, LivingEntity livingEntity){
+
     }
-    public static ISoulState generateState(String key, byte stage, LivingEntity livingEntity){
+    public static ISoulState generateState(String key, byte state, LivingEntity livingEntity){
         switch (key){
-            case "aggressiveness" -> {return new Aggressiveness(stage, livingEntity);}
-            case "anger" -> {return new Anger(stage, livingEntity);}
-            case "anticipation" -> {return new Anticipation(stage, livingEntity);}
-            case "awe" -> {return new Awe(stage, livingEntity);}
-            case "contempt" -> {return new Contempt(stage, livingEntity);}
-            case "disapproval" -> {return new Disapproval(stage, livingEntity);}
-            case "disgust" -> {return new Disgust(stage, livingEntity);}
-            case "fear" -> {return new Fear(stage, livingEntity);}
-            case "joy" -> {return new Joy(stage, livingEntity);}
-            case "love" -> {return new Love(stage, livingEntity);}
-            case "optimism" -> {return new Optimism(stage, livingEntity);}
-            case "remorse" -> {return new Remorse(stage, livingEntity);}
-            case "sadness" -> {return new Sadness(stage, livingEntity);}
-            case "submission" -> {return new Submission(stage, livingEntity);}
-            case "surprise" -> {return new Surprise(stage, livingEntity);}
-            case "trust" -> {return new Trust(stage, livingEntity);}
+            case "aggressiveness" -> {return new Aggressiveness(state, livingEntity);}
+            case "anger" -> {return new Anger(state, livingEntity);}
+            case "anticipation" -> {return new Anticipation(state, livingEntity);}
+            case "awe" -> {return new Awe(state, livingEntity);}
+            case "contempt" -> {return new Contempt(state, livingEntity);}
+            case "disapproval" -> {return new Disapproval(state, livingEntity);}
+            case "disgust" -> {return new Disgust(state, livingEntity);}
+            case "fear" -> {return new Fear(state, livingEntity);}
+            case "joy" -> {return new Joy(state, livingEntity);}
+            case "love" -> {return new Love(state, livingEntity);}
+            case "optimism" -> {return new Optimism(state, livingEntity);}
+            case "remorse" -> {return new Remorse(state, livingEntity);}
+            case "sadness" -> {return new Sadness(state, livingEntity);}
+            case "submission" -> {return new Submission(state, livingEntity);}
+            case "surprise" -> {return new Surprise(state, livingEntity);}
+            case "trust" -> {return new Trust(state, livingEntity);}
         }
         return null;
     }
 
-    private static void changeState(String key, byte stage, LivingEntity livingEntity){
-        ISoulState newState = livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates.get(key);
-        newState.setStage(stage);
-        livingEntity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> soulCapability.soulStates.put(key, newState));
-    }
 }

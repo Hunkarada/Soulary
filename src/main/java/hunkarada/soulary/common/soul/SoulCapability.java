@@ -17,7 +17,6 @@
 package hunkarada.soulary.common.soul;
 
 import hunkarada.soulary.Soulary;
-import hunkarada.soulary.common.soul.states.ISoulState;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -31,11 +30,8 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.HashMap;
 
-import static hunkarada.soulary.common.soul.StatesHandler.generateState;
-import static hunkarada.soulary.common.soul.StatesHandler.stateHandler;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 
 /*This class is implementing soul capability.*/
@@ -50,13 +46,11 @@ public class SoulCapability {
 
     //soulStats contains will (= mana) and stability (= exhaustion), they have simple calculations and used for casting wills.
     protected final HashMap<String, Float> soulStats = new HashMap<>();
-    // soulFeels contains actual feels (check in FEEL_NAMES), soulAdaptation contains values for adaptation mechanic (check calculateWithAdaptation()).
+    // soulFeels contains actual basic feels (check in FEEL_NAMES), soulAdaptation contains values for adaptation mechanic (check calculateWithAdaptation()).
     protected final HashMap<String, Float> soulFeels = new HashMap<>();
     protected final HashMap<String, Float> soulAdaptations = new HashMap<>();
-    // soulStages contains values for stages mechanic (method to understand, when I should change states, check validateStage()).
-    protected final HashMap<String, Byte> soulStages = new HashMap<>();
     // soulStates contains currently affecting states to LivingEntity, check StatesHandler.class and SoulState.class.
-    protected final HashMap<String, ISoulState> soulStates = new HashMap<>();
+    protected final HashMap<String, Byte> soulStates = new HashMap<>();
     // soulRelation contains UUID:soulFeels keypair to handle relations with other entities.
     protected final HashMap<String, HashMap<String, Float>> soulRelations = new HashMap<>();
     // tickCounter using to handle TickingSoulEvents.class and any other tick-related mechanics.
@@ -78,8 +72,8 @@ public class SoulCapability {
     public float getFeel(String key){
         return soulFeels.get(key);
     }
-    public byte getStage(String key){
-        return soulStages.get(key);
+    public byte getState(String key){
+        return soulStates.get(key);
     }
     /*Method to handle tickingCounter and ChaosNumbers*/
     public boolean tickHandler(){
@@ -90,215 +84,6 @@ public class SoulCapability {
         else {
             tickCounter = 0;
             return true;
-        }
-    }
-
-    /*Methods for safety changing capability data
-    * No need to create subtract and divide methods because I can use add and multiply as subtract and divide
-    * Also, I can set border to max value with setting stage, or disable changing reversed adaptation (for example if I want to change all feelings at once), check validateStage() method for more info.*/
-    public void add(String key, float value, byte stage, boolean changeReversedAdaptation) {
-        if (soulStats.containsKey(key)){
-            float result = soulStats.get(key) + value;
-            safetyCalc(key, result, stage);
-        }
-        else if (soulFeels.containsKey(key)) {
-            safetyCalc(key, calculateWithAdaptation(key, value, changeReversedAdaptation), stage);
-        }
-    }
-    public void multiply(String key, float value, byte stage, boolean changeReversedAdaptation) {
-        if (soulStats.containsKey(key)){
-            float result = soulStats.get(key) * value;
-            safetyCalc(key, result, stage);
-        }
-        else if (soulFeels.containsKey(key)) {
-            float result = soulFeels.get(key) * value - soulFeels.get(key);
-            safetyCalc(key, calculateWithAdaptation(key, result, changeReversedAdaptation), stage);
-        }
-    }
-
-    /*Simplified calculation methods*/
-    public void add(String key, float value){
-        add(key, value, (byte) 3, true);
-    }
-    public void multiply(String key, float value){
-        multiply(key, value, (byte) 3, true);
-    }
-    public void add(String key, float value, boolean changeReversedAdaptation){
-        add(key, value, (byte) 3, changeReversedAdaptation);
-    }
-    public void multiply(String key, float value, boolean changeReversedAdaptation){
-        multiply(key, value, (byte) 3, changeReversedAdaptation);
-    }
-    public void add(String key, float value, byte stage){
-        add(key, value, stage, true);
-    }
-    public void multiply(String key, float value, byte stage){
-        multiply(key, value, stage, true);
-    }
-
-    /*Because I'll change only soulStats and soulFeels directly, and they haven't equal keys, so I'll get map from unique key,*/
-    private HashMap<String, Float> selectMap(String key){
-        if (soulStats.containsKey(key)){
-            return soulStats;
-        }
-        else if (soulFeels.containsKey(key)){
-            return soulFeels;
-        }
-        else throw new RuntimeException("Invalid key for HashMap");
-    }
-
-    /*Method, which validating current stage after changing feelings*/
-    private void validateStage(String key){
-        byte previousStage = soulStages.get(key);
-        byte newStage = 0;
-        float value = soulFeels.get(key);
-        if (value > 25 && value <= 50) {
-            newStage = 1;
-        } else if (value > 50 && value <= 75) {
-            newStage = 2;
-        } else if (value > 75 && value <= 100) {
-            newStage = 3;
-        }
-        if (previousStage != newStage){
-            soulStages.put(key, newStage);
-            stateHandler(livingEntity, key);
-        }
-    }
-
-    /*Method, which validating adaptation state, based on changed value.
-    * Made by Brilliance
-    * https://www.desmos.com/calculator/glrhteb7z9*/
-    private float calculateWithAdaptation(String key, float value, boolean changeReversedAdaptation){
-        int index = Arrays.stream(FEEL_NAMES).toList().indexOf(key);
-        float adaptation = soulAdaptations.get(FEEL_NAMES[index]);
-        float bufferAdaptation = soulAdaptations.get(FEEL_NAMES[index]) + value;
-        float reversedBufferAdaptation = soulAdaptations.get(REVERSED_FEEL_NAMES[index]) - value;
-        float resultAdaptation = 0;
-        if (bufferAdaptation < 0 || adaptation < 0){
-            float BA;
-            float ADA;
-            if (bufferAdaptation < -50){
-                BA = -50;
-                resultAdaptation +=(bufferAdaptation+50)*2;
-            }
-            else if (bufferAdaptation > 0){
-                BA = 0;
-            }
-            else {
-                BA = bufferAdaptation;
-            }
-            if (adaptation > 0){
-                ADA = 0;
-            }
-            else {
-                ADA = adaptation;
-            }
-            resultAdaptation += (BA-ADA)*onAdaptationNegative(BA);
-            if (bufferAdaptation < -50){
-                bufferAdaptation = -50;
-            }
-            if (reversedBufferAdaptation > 50){
-                reversedBufferAdaptation = 50;
-            }
-            else if (reversedBufferAdaptation < -50){
-                reversedBufferAdaptation = -50;
-            }
-        }
-        if (bufferAdaptation > 0 || adaptation > 0){
-            float BA;
-            float ADA;
-            if (bufferAdaptation > 50){
-                BA = 50;
-                resultAdaptation +=(bufferAdaptation-50)*0.5;
-            }
-            else if (bufferAdaptation < 0){
-                BA = 0;
-            }
-            else {
-                BA = bufferAdaptation;
-            }
-            if (adaptation < 0){
-                ADA = 0;
-            }
-            else {
-                ADA = adaptation;
-            }
-            resultAdaptation += (BA-ADA)*onAdaptationPositive(BA);
-            if (bufferAdaptation > 50){
-                bufferAdaptation = 50;
-            }
-            if (reversedBufferAdaptation > 50){
-                reversedBufferAdaptation = 50;
-            }
-            else if (reversedBufferAdaptation < -50){
-                reversedBufferAdaptation = -50;
-            }
-        }
-        soulAdaptations.put(FEEL_NAMES[index], bufferAdaptation);
-        if (changeReversedAdaptation){
-            soulAdaptations.put(REVERSED_FEEL_NAMES[index], reversedBufferAdaptation);
-        }
-        return soulFeels.get(FEEL_NAMES[index]) + resultAdaptation;
-    }
-    /*Functions for internal calculations of adaptation
-    Positive means adaptation > 1, negative means adaptation < 1*/
-    private static float onAdaptationPositive(float x){
-        return (float) (-0.01*x+1);
-    }
-    private static float onAdaptationNegative(float x){
-        return (float) (-0.02*x+1);
-    }
-    /*Method, which checking calculations for invalid results.
-    If invalid - sets value at 0-stage borders.*/
-    private void safetyCalc(String key, float result, byte stage){
-        switch (stage){
-            case 0 -> {
-                if (result > 25){
-                    selectMap(key).put(key, 25f);
-                }
-                else if (result < 0){
-                    selectMap(key).put(key, 0f);
-                }
-                else {
-                    selectMap(key).put(key, result);
-                }
-            }
-            case 1 -> {
-                if (result > 50){
-                    selectMap(key).put(key, 50f);
-                }
-                else if (result < 0){
-                    selectMap(key).put(key, 0f);
-                }
-                else {
-                    selectMap(key).put(key, result);
-                }
-            }
-            case 2 -> {
-                if (result > 75){
-                    selectMap(key).put(key, 75f);
-                }
-               else if (result < 0){
-                    selectMap(key).put(key, 0f);
-                }
-                else {
-                    selectMap(key).put(key, result);
-                }
-            }
-            case 3 -> {
-                if (result > 100){
-                    selectMap(key).put(key, 100f);
-                }
-                else if (result < 0){
-                    selectMap(key).put(key, 0f);
-                }
-                else {
-                    selectMap(key).put(key, result);
-                }
-            }
-        }
-        if (soulFeels.containsKey(key)) {
-            validateStage(key);
         }
     }
 
@@ -419,7 +204,7 @@ public class SoulCapability {
         nbt.put("soulStats", convertHashToNbt(soulStats));
         nbt.put("soulFeels", convertHashToNbt(soulFeels));
         nbt.put("soulAdaptations", convertHashToNbt(soulAdaptations));
-        nbt.put("soulStages", convertHashToNbt(soulStages));
+        nbt.put("soulStates", convertHashToNbt(soulStates));
         nbt.putByte("tickCounter", tickCounter);
         return nbt;
     }
@@ -429,7 +214,7 @@ public class SoulCapability {
         setFromNbtToHash((CompoundTag) nbt.get("soulStats"), soulStats);
         setFromNbtToHash((CompoundTag) nbt.get("soulFeels"), soulFeels);
         setFromNbtToHash((CompoundTag) nbt.get("soulAdaptations"), soulAdaptations);
-        setFromNbtToHash((CompoundTag) nbt.get("soulStages"), soulStages);
+        setFromNbtToHash((CompoundTag) nbt.get("soulStates"), soulStates);
         nbt.getByte("tickCounter");
     }
 
@@ -440,12 +225,11 @@ public class SoulCapability {
         }
         for (String key : FEEL_NAMES) {
             soulFeels.put(key, 0f);
-            soulStages.put(key, (byte) 0);
             soulAdaptations.put(key, 0f);
-            validateStage(key);
+            FeelsHandler.validateBasicState(key, livingEntity);
         }
         for (String key : STATE_NAMES){
-            soulStates.put(key, generateState(key, (byte) 0, livingEntity));
+            soulStates.put(key, (byte) 0);
         }
         tickCounter = 0;
     }
@@ -510,10 +294,10 @@ public class SoulCapability {
             event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
                 soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getNbtData());
                 for (String key:FEEL_NAMES){
-                    soulCapability.multiply(key, 0.5f, false);
+                    FeelsHandler.multiplyFeel(key, 0.5f, false, event.getEntityLiving());
                 }
-                soulCapability.add("will", -100);
-                soulCapability.add("stability", 100);
+                FeelsHandler.addFeel("will", -100, event.getEntityLiving());
+                FeelsHandler.addFeel("stability", 100, event.getEntityLiving());
             });
         }
     }
