@@ -17,6 +17,7 @@
 package hunkarada.soulary.common.soul;
 
 import hunkarada.soulary.Soulary;
+import hunkarada.soulary.common.soul.states.*;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -30,8 +31,10 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.HashMap;
 
+import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 
 /*This class is implementing soul capability.*/
@@ -39,9 +42,10 @@ import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABIL
 public class SoulCapability {
     /*Name constants for setting default capability data*/
     public static final String[] STAT_NAMES = {"will", "stability"};
-    public static final String[] FEEL_NAMES = {"joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation"};
-    public static final String[] REVERSED_FEEL_NAMES = {"sadness", "joy", "disgust", "trust", "anger", "fear", "anticipation", "surprise"};
-    public static final String[] STATE_NAMES = {"joy", "sadness", "trust", "disgust", "fear", "anger", "surprise", "anticipation", "aggressiveness", "awe", "contempt", "disapproval", "love", "optimism", "remorse", "submission"};
+    public static final String[] FEEL_NAMES = {"joy", "trust", "fear", "surprise", "sadness", "disgust", "anger", "anticipation"};
+    public static final String[] COMPLEX_FEEL_NAMES = {"optimism", "love", "submission", "awe", "disapproval", "remorse", "contempt", "aggressiveness"};
+    public static final String[] REVERSED_FEEL_NAMES = {"sadness", "disgust", "anger", "anticipation", "joy", "trust", "fear", "surprise"};
+    public static final String[] STATE_NAMES = {"joy", "trust", "fear", "surprise", "sadness", "disgust", "anger", "anticipation", "optimism", "love", "submission", "awe", "disapproval", "remorse", "contempt", "aggressiveness"};
     //That's actually capability data
 
     //soulStats contains will (= mana) and stability (= exhaustion), they have simple calculations and used for casting wills.
@@ -64,6 +68,103 @@ public class SoulCapability {
         this.livingEntity = livingEntity;
         setDefaults();
     }
+    // Enums for type-safety
+    public enum Feels{
+        JOY("joy"),
+        TRUST("trust"),
+        FEAR("fear"),
+        SURPRISE("surprise"),
+        SADNESS("sadness"),
+        DISGUST("disgust"),
+        ANGER("anger"),
+        ANTICIPATION("anticipation");
+
+        private final String key;
+        Feels(String key){
+            this.key = key;
+        }
+        public static Feels getFromKey(String key){
+            Feels feels;
+            switch (key){
+                case "joy" -> feels = JOY;
+                case "trust" -> feels = TRUST;
+                case "fear" -> feels = FEAR;
+                case  "surprise" -> feels = SURPRISE;
+                case "sadness" -> feels = SADNESS;
+                case "disgust" -> feels = DISGUST;
+                case "anger" -> feels = ANGER;
+                case  "anticipation" -> feels = ANTICIPATION;
+                default -> throw new IllegalStateException("Unexpected value: " + key);
+            }
+            return feels;
+        }
+    }
+
+    public enum Stats{
+        WILL("will"),
+        STABILITY("stability");
+        private final String key;
+        Stats(String key){
+            this.key = key;
+        }
+        public static Stats getFromKey(String key){
+            Stats stats;
+            switch (key){
+                case "will" -> stats = WILL;
+                case "stability" -> stats = STABILITY;
+                default -> throw new IllegalStateException("Unexpected value: " + key);
+            }
+            return stats;
+        }
+    }
+
+    /*Methods for safety changing capability data
+    * No need to create subtract and divide methods because I can use addFeel and multiplyFeel as subtract and divide
+    * Also, I can set border to max value with setting state, or disable changing reversed adaptation (for example if I want to change all feelings at once), check validateState() method for more info.*/
+    public void addStat(Stats stat, float value){
+        float result = soulStats.get(stat.key) + value;
+        validateStatCalculation(stat.key, result);
+    }
+    public void multiplyStat(Stats stat, float value){
+        float result = soulStats.get(stat.key) * value;
+        validateStatCalculation(stat.key, result);
+    }
+
+
+    public void addFeel(Feels feel, float value, byte state, boolean changeReversedAdaptation) {
+        validateFeelsCalculation(feel.key, calculateAdaptation(feel.key, value, changeReversedAdaptation), state);
+    }
+
+    public void multiplyFeel(String key, float value, byte state, boolean changeReversedAdaptation) {
+        float result = soulFeels.get(key) * value - soulFeels.get(key);
+        validateFeelsCalculation(key, calculateAdaptation(key, result, changeReversedAdaptation), state);
+    }
+
+    /*Simplified calculation methods*/
+    public void addFeel(Feels key, float value){
+        addFeel(key, value, (byte) 3, true);
+    }
+
+    public void multiplyFeel(String key, float value){
+        multiplyFeel(key, value, (byte) 3, true);
+    }
+
+    public void addFeel(Feels key, float value, boolean changeReversedAdaptation){
+        addFeel(key, value, (byte) 3, changeReversedAdaptation);
+    }
+
+    public void multiplyFeel(String key, float value, boolean changeReversedAdaptation){
+        multiplyFeel(key, value, (byte) 3, changeReversedAdaptation);
+    }
+
+    public void addFeel(Feels key, float value, byte state){
+        addFeel(key, value, state, true);
+    }
+
+    public void multiplyFeel(String key, float value, byte state){
+        multiplyFeel(key, value, state, true);
+    }
+
 
     /*Methods for safety getting data from HashMap*/
     public float getStat(String key) {
@@ -226,7 +327,6 @@ public class SoulCapability {
         for (String key : FEEL_NAMES) {
             soulFeels.put(key, 0f);
             soulAdaptations.put(key, 0f);
-            FeelsHandler.validateBasicState(key, livingEntity);
         }
         for (String key : STATE_NAMES){
             soulStates.put(key, (byte) 0);
@@ -294,11 +394,203 @@ public class SoulCapability {
             event.getEntityLiving().getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
                 soulCapability.setNbtData(event.getOriginal().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getNbtData());
                 for (String key:FEEL_NAMES){
-                    FeelsHandler.multiplyFeel(key, 0.5f, false, event.getEntityLiving());
+                    soulCapability.multiplyFeel(key, 0.5f, false);
                 }
-                FeelsHandler.addFeel("will", -100, event.getEntityLiving());
-                FeelsHandler.addFeel("stability", 100, event.getEntityLiving());
+                soulCapability.addStat(Stats.WILL, -100);
+                soulCapability.addStat(Stats.STABILITY, 100);
             });
         }
+    }
+
+    /*Method, which validating adaptation state, based on changed value.
+     * Made by Brilliance
+     * https://www.desmos.com/calculator/glrhteb7z9*/
+    private float calculateAdaptation(String key, float value, boolean changeReversedAdaptation){
+        int index = Arrays.stream(FEEL_NAMES).toList().indexOf(key);
+        float adaptation = soulAdaptations.get(FEEL_NAMES[index]);
+        float bufferAdaptation = soulAdaptations.get(FEEL_NAMES[index]) + value;
+        float reversedBufferAdaptation = soulAdaptations.get(REVERSED_FEEL_NAMES[index]) - value;
+        float resultAdaptation = 0;
+        if (bufferAdaptation < 0 || adaptation < 0){
+            float BA;
+            float ADA;
+            if (bufferAdaptation < -50){
+                BA = -50;
+                resultAdaptation +=(bufferAdaptation+50)*2;
+            }
+            else if (bufferAdaptation > 0){
+                BA = 0;
+            }
+            else {
+                BA = bufferAdaptation;
+            }
+            if (adaptation > 0){
+                ADA = 0;
+            }
+            else {
+                ADA = adaptation;
+            }
+            // when adaptation becomes negative
+            resultAdaptation += (BA-ADA)*(-0.02*BA+1);
+            if (bufferAdaptation < -50){
+                bufferAdaptation = -50;
+            }
+            if (reversedBufferAdaptation > 50){
+                reversedBufferAdaptation = 50;
+            }
+            else if (reversedBufferAdaptation < -50){
+                reversedBufferAdaptation = -50;
+            }
+        }
+        if (bufferAdaptation > 0 || adaptation > 0){
+            float BA;
+            float ADA;
+            if (bufferAdaptation > 50){
+                BA = 50;
+                resultAdaptation +=(bufferAdaptation-50)*0.5;
+            }
+            else if (bufferAdaptation < 0){
+                BA = 0;
+            }
+            else {
+                BA = bufferAdaptation;
+            }
+            if (adaptation < 0){
+                ADA = 0;
+            }
+            else {
+                ADA = adaptation;
+            }
+            //when adaptation becomes positive
+            resultAdaptation += (BA-ADA)*(-0.01*BA+1);
+            if (bufferAdaptation > 50){
+                bufferAdaptation = 50;
+            }
+            if (reversedBufferAdaptation > 50){
+                reversedBufferAdaptation = 50;
+            }
+            else if (reversedBufferAdaptation < -50){
+                reversedBufferAdaptation = -50;
+            }
+        }
+        soulAdaptations.put(FEEL_NAMES[index], bufferAdaptation);
+        if (changeReversedAdaptation){
+            soulAdaptations.put(REVERSED_FEEL_NAMES[index], reversedBufferAdaptation);
+        }
+        return soulFeels.get(FEEL_NAMES[index]) + resultAdaptation;
+    }
+
+    /*Method, which checking calculations for invalid results.
+            If invalid - sets value at 0-state borders.*/
+    private void validateFeelsCalculation(String key, float result, byte state){
+        float currentFeel = soulFeels.get(key);
+        float border = 25 + (25*state);
+        if (result < 0){
+            soulFeels.put(key, 0f);
+        }
+        else if (result > border && currentFeel <= border){
+            soulFeels.put(key, border);
+        }
+        else {
+            soulFeels.put(key, result);
+        }
+        validateState(key);
+    }
+
+    private void validateStatCalculation(String key, float result){
+        if (result > 100){
+            soulStats.put(key, 100f);
+        }
+        else if (result < 0){
+            soulStats.put(key, 0f);
+        }
+        else {
+            soulStats.put(key, result);
+        }
+    }
+
+    /*This method changing current state of entity, depending on feelings of this entity.*/
+    public void validateState(String key){
+        byte previousState = soulStates.get(key);
+        byte newState = 0;
+        float value = soulFeels.get(key);
+
+        if (value > 25 && value <= 50) {
+            newState = 1;
+        } else if (value > 50 && value <= 75) {
+            newState = 2;
+        } else if (value > 75 && value <= 100) {
+            newState = 3;
+        }
+        if (previousState != newState){
+            soulStates.put(key, newState);
+        }
+
+        int basicIndex = Arrays.stream(FEEL_NAMES).toList().indexOf(key);
+        int firstIndex = basicIndex-1;
+        int secondIndex = basicIndex+1;
+
+        if (firstIndex < 0){
+            firstIndex = 7;
+        }
+        if (secondIndex > 7){
+            secondIndex = 0;
+        }
+
+        byte firstState = soulStates.get(FEEL_NAMES[firstIndex]);
+        byte secondState = soulStates.get(FEEL_NAMES[secondIndex]);
+
+        if (newState >= firstState){
+            soulStates.put(COMPLEX_FEEL_NAMES[basicIndex], firstState);
+        }
+        else {
+            soulStates.put(COMPLEX_FEEL_NAMES[basicIndex], newState);
+        }
+
+        if (newState >= secondState){
+            soulStates.put(COMPLEX_FEEL_NAMES[secondIndex], secondState);
+        }
+        else {
+            soulStates.put(COMPLEX_FEEL_NAMES[secondIndex], newState);
+        }
+    }
+
+    public static ISoulState generateState(String key, byte state, LivingEntity livingEntity){
+        switch (key){
+            case "aggressiveness" -> {return new Aggressiveness(state, livingEntity);}
+            case "anger" -> {return new Anger(state, livingEntity);}
+            case "anticipation" -> {return new Anticipation(state, livingEntity);}
+            case "awe" -> {return new Awe(state, livingEntity);}
+            case "contempt" -> {return new Contempt(state, livingEntity);}
+            case "disapproval" -> {return new Disapproval(state, livingEntity);}
+            case "disgust" -> {return new Disgust(state, livingEntity);}
+            case "fear" -> {return new Fear(state, livingEntity);}
+            case "joy" -> {return new Joy(state, livingEntity);}
+            case "love" -> {return new Love(state, livingEntity);}
+            case "optimism" -> {return new Optimism(state, livingEntity);}
+            case "remorse" -> {return new Remorse(state, livingEntity);}
+            case "sadness" -> {return new Sadness(state, livingEntity);}
+            case "submission" -> {return new Submission(state, livingEntity);}
+            case "surprise" -> {return new Surprise(state, livingEntity);}
+            case "trust" -> {return new Trust(state, livingEntity);}
+        }
+        return null;
+    }
+
+    public static void debug(LivingEntity livingEntity){
+        LOGGER.warn("BEFORE");
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStats);
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulFeels);
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates);
+        livingEntity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
+            soulCapability.addStat(Stats.WILL, 10);
+            soulCapability.addStat(Stats.STABILITY, 10);
+            soulCapability.addFeel(Feels.JOY, 10);
+            soulCapability.addFeel(Feels.TRUST, 5, (byte) 1);
+        });
+        LOGGER.warn("AFTER");
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStats);
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulFeels);
+        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates);
     }
 }

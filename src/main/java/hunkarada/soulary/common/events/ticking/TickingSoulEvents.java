@@ -16,7 +16,6 @@
 
 package hunkarada.soulary.common.events.ticking;
 
-import hunkarada.soulary.common.soul.FeelsHandler;
 import hunkarada.soulary.common.soul.SoulCapability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
@@ -31,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.common.soul.SoulCapability.FEEL_NAMES;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
@@ -40,8 +40,12 @@ public class TickingSoulEvents {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).tickHandler()){
             biomeExposure(event);
             soulAura(event);
+            if (event.getEntityLiving() instanceof Player){
+                SoulCapability.debug(event.getEntityLiving());
+            }
         }
     }
+
     /*Method, which working, when you have stage >= 2.
      If so, you will share your feelings with any other entities in radius, based on your will.*/
     private static void soulAura(LivingEvent event){
@@ -72,7 +76,7 @@ public class TickingSoulEvents {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
                             for (int index = 0; index < FEEL_NAMES.length; index++) {
-                                FeelsHandler.addFeel(FEEL_NAMES[index], event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true, event.getEntityLiving());
+                                soulCapability.addFeel(SoulCapability.Feels.getFromKey(FEEL_NAMES[index]), event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
                             }
                         });
                 if (entity instanceof Player) {
