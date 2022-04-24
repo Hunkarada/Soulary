@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static hunkarada.soulary.Soulary.LOGGER;
 import static hunkarada.soulary.common.soul.SoulCapability.FEEL_NAMES;
 import static hunkarada.soulary.common.soul.SoulCapability.Provider.SOUL_CAPABILITY;
 import static hunkarada.soulary.network.packets.SyncSoulCapability.sync;
@@ -40,9 +39,6 @@ public class TickingSoulEvents {
         if (event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).tickHandler()){
             biomeExposure(event);
             soulAura(event);
-            if (event.getEntityLiving() instanceof Player){
-                SoulCapability.debug(event.getEntityLiving());
-            }
         }
     }
 
@@ -76,7 +72,7 @@ public class TickingSoulEvents {
                 entity.getCapability(SOUL_CAPABILITY).ifPresent(
                         soulCapability -> {
                             for (int index = 0; index < FEEL_NAMES.length; index++) {
-                                soulCapability.addFeel(SoulCapability.Feels.getFromKey(FEEL_NAMES[index]), event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
+                                soulCapability.addFeel(SoulCapability.SoulFeels.getFromKey(FEEL_NAMES[index]), event.getEntityLiving().getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(event.getEntityLiving())).getFeel(FEEL_NAMES[index]) / 100, (byte) (stages.get(index)-2), true);
                             }
                         });
                 if (entity instanceof Player) {

@@ -69,7 +69,7 @@ public class SoulCapability {
         setDefaults();
     }
     // Enums for type-safety
-    public enum Feels{
+    public enum SoulFeels {
         JOY("joy"),
         TRUST("trust"),
         FEAR("fear"),
@@ -80,58 +80,58 @@ public class SoulCapability {
         ANTICIPATION("anticipation");
 
         private final String key;
-        Feels(String key){
+        SoulFeels(String key){
             this.key = key;
         }
-        public static Feels getFromKey(String key){
-            Feels feels;
+        public static SoulFeels getFromKey(String key){
+            SoulFeels soulFeels;
             switch (key){
-                case "joy" -> feels = JOY;
-                case "trust" -> feels = TRUST;
-                case "fear" -> feels = FEAR;
-                case  "surprise" -> feels = SURPRISE;
-                case "sadness" -> feels = SADNESS;
-                case "disgust" -> feels = DISGUST;
-                case "anger" -> feels = ANGER;
-                case  "anticipation" -> feels = ANTICIPATION;
+                case "joy" -> soulFeels = JOY;
+                case "trust" -> soulFeels = TRUST;
+                case "fear" -> soulFeels = FEAR;
+                case  "surprise" -> soulFeels = SURPRISE;
+                case "sadness" -> soulFeels = SADNESS;
+                case "disgust" -> soulFeels = DISGUST;
+                case "anger" -> soulFeels = ANGER;
+                case  "anticipation" -> soulFeels = ANTICIPATION;
                 default -> throw new IllegalStateException("Unexpected value: " + key);
             }
-            return feels;
+            return soulFeels;
         }
     }
 
-    public enum Stats{
+    public enum SoulStats {
         WILL("will"),
         STABILITY("stability");
         private final String key;
-        Stats(String key){
+        SoulStats(String key){
             this.key = key;
         }
-        public static Stats getFromKey(String key){
-            Stats stats;
+        public static SoulStats getFromKey(String key){
+            SoulStats soulStats;
             switch (key){
-                case "will" -> stats = WILL;
-                case "stability" -> stats = STABILITY;
+                case "will" -> soulStats = WILL;
+                case "stability" -> soulStats = STABILITY;
                 default -> throw new IllegalStateException("Unexpected value: " + key);
             }
-            return stats;
+            return soulStats;
         }
     }
 
     /*Methods for safety changing capability data
     * No need to create subtract and divide methods because I can use addFeel and multiplyFeel as subtract and divide
     * Also, I can set border to max value with setting state, or disable changing reversed adaptation (for example if I want to change all feelings at once), check validateState() method for more info.*/
-    public void addStat(Stats stat, float value){
+    public void addStat(SoulStats stat, float value){
         float result = soulStats.get(stat.key) + value;
         validateStatCalculation(stat.key, result);
     }
-    public void multiplyStat(Stats stat, float value){
+    public void multiplyStat(SoulStats stat, float value){
         float result = soulStats.get(stat.key) * value;
         validateStatCalculation(stat.key, result);
     }
 
 
-    public void addFeel(Feels feel, float value, byte state, boolean changeReversedAdaptation) {
+    public void addFeel(SoulFeels feel, float value, byte state, boolean changeReversedAdaptation) {
         validateFeelsCalculation(feel.key, calculateAdaptation(feel.key, value, changeReversedAdaptation), state);
     }
 
@@ -141,7 +141,7 @@ public class SoulCapability {
     }
 
     /*Simplified calculation methods*/
-    public void addFeel(Feels key, float value){
+    public void addFeel(SoulFeels key, float value){
         addFeel(key, value, (byte) 3, true);
     }
 
@@ -149,7 +149,7 @@ public class SoulCapability {
         multiplyFeel(key, value, (byte) 3, true);
     }
 
-    public void addFeel(Feels key, float value, boolean changeReversedAdaptation){
+    public void addFeel(SoulFeels key, float value, boolean changeReversedAdaptation){
         addFeel(key, value, (byte) 3, changeReversedAdaptation);
     }
 
@@ -157,7 +157,7 @@ public class SoulCapability {
         multiplyFeel(key, value, (byte) 3, changeReversedAdaptation);
     }
 
-    public void addFeel(Feels key, float value, byte state){
+    public void addFeel(SoulFeels key, float value, byte state){
         addFeel(key, value, state, true);
     }
 
@@ -396,8 +396,8 @@ public class SoulCapability {
                 for (String key:FEEL_NAMES){
                     soulCapability.multiplyFeel(key, 0.5f, false);
                 }
-                soulCapability.addStat(Stats.WILL, -100);
-                soulCapability.addStat(Stats.STABILITY, 100);
+                soulCapability.addStat(SoulStats.WILL, -100);
+                soulCapability.addStat(SoulStats.STABILITY, 100);
             });
         }
     }
@@ -488,8 +488,10 @@ public class SoulCapability {
         if (result < 0){
             soulFeels.put(key, 0f);
         }
-        else if (result > border && currentFeel <= border){
-            soulFeels.put(key, border);
+        else if (result > border){
+            if (currentFeel < border){
+                soulFeels.put(key, border);
+            }
         }
         else {
             soulFeels.put(key, result);
@@ -510,7 +512,7 @@ public class SoulCapability {
     }
 
     /*This method changing current state of entity, depending on feelings of this entity.*/
-    public void validateState(String key){
+    private void validateState(String key){
         byte previousState = soulStates.get(key);
         byte newState = 0;
         float value = soulFeels.get(key);
@@ -575,22 +577,5 @@ public class SoulCapability {
             case "trust" -> {return new Trust(state, livingEntity);}
         }
         return null;
-    }
-
-    public static void debug(LivingEntity livingEntity){
-        LOGGER.warn("BEFORE");
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStats);
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulFeels);
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates);
-        livingEntity.getCapability(SOUL_CAPABILITY).ifPresent(soulCapability -> {
-            soulCapability.addStat(Stats.WILL, 10);
-            soulCapability.addStat(Stats.STABILITY, 10);
-            soulCapability.addFeel(Feels.JOY, 10);
-            soulCapability.addFeel(Feels.TRUST, 5, (byte) 1);
-        });
-        LOGGER.warn("AFTER");
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStats);
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulFeels);
-        LOGGER.warn(livingEntity.getCapability(SOUL_CAPABILITY).orElse(new SoulCapability(livingEntity)).soulStates);
     }
 }
